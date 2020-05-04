@@ -577,6 +577,8 @@ void common_power_init(struct powerhal_info *pInfo)
 void common_power_set_interactive(struct powerhal_info *pInfo, int on)
 {
     int dev_id;
+    int i = 0;
+    char name[MAX_CHARS];
     char path[80];
     const char* state = (0 == on)?"0":"1";
 
@@ -603,6 +605,25 @@ void common_power_set_interactive(struct powerhal_info *pInfo, int on)
         if(pInfo->switch_cpu_emc_limit_enabled) {
             sysfs_write_int(CPU_EMC_RATIO_SRC_NODE, on);
         }
+    }
+
+    while (on)
+    {
+        snprintf(path, sizeof(path), "/sys/bus/serial/devices/serial%d-0/of_node/name", i);
+        if (access(path, F_OK) < 0)
+            break;
+        else {
+            memset(name, 0, MAX_CHARS);
+            sysfs_read(path, name, MAX_CHARS);
+            if (name[strlen(name) - 1] == '\n')
+                name[strlen(name) - 1] = '\0';
+            if (!strncmp(name, "joyconl", MAX_CHARS) || !strncmp(name, "joyconr", MAX_CHARS)) {
+                snprintf(path, sizeof(path), "/sys/bus/serial/devices/serial%d-0/wake", i);
+                ALOGI("Waking up input device: %s", name);
+                sysfs_write(path, state);
+	    }
+        }
+	i++;
     }
 
     if (pInfo->no_cpufreq_interactive)
